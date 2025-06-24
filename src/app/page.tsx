@@ -39,9 +39,12 @@ export default function HomePage() {
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             老龄友好社区评估系统
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-xl text-gray-600 mb-4">
             基于8大类别47个指标的综合评估体系，科学评价社区老龄友好水平
           </p>
+          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800 mb-8">
+            ✅ 已部署至 Vercel - 版本 1.0
+          </div>
           
           {/* 搜索栏 */}
           <div className="max-w-md mx-auto mb-8">
