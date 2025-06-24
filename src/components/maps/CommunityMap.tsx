@@ -34,7 +34,7 @@ export default function CommunityMap({
         }
 
         const script = document.createElement('script');
-        script.src = `https://webapi.amap.com/maps?v=2.0&key=${process.env.NEXT_PUBLIC_AMAP_KEY}`;
+        script.src = `https://webapi.amap.com/maps?v=2.0&key=4ff904ae7801718e67ca9447737b80df&plugin=AMap.Geocoder,AMap.PlaceSearch`;
         script.onload = () => resolve(window.AMap);
         script.onerror = reject;
         document.head.appendChild(script);
@@ -80,12 +80,65 @@ export default function CommunityMap({
           const { lng, lat } = e.lnglat;
           markerInstance.setPosition([lng, lat]);
           
-          // 逆地理编码获取地址
-          const geocoder = new window.AMap.Geocoder();
+          // 逆地理编码获取详细地址信息，包括小区名称
+          const geocoder = new window.AMap.Geocoder({
+            radius: 1000, // 搜索半径1000米
+            extensions: 'all' // 返回详细信息
+          });
           geocoder.getAddress([lng, lat], (status: string, result: any) => {
             if (status === 'complete' && result.regeocode) {
-              const address = result.regeocode.formattedAddress;
-              onLocationSelect?.({ lng, lat, address });
+              const regeocode = result.regeocode;
+              let address = regeocode.formattedAddress;
+              let communityName = '';
+              
+              // 尝试获取更详细的地址信息，包括小区名称
+              if (regeocode.addressComponent) {
+                const component = regeocode.addressComponent;
+                // 优先显示小区名称
+                if (component.neighborhood && component.neighborhood.name) {
+                  communityName = component.neighborhood.name;
+                } else if (component.building && component.building.name) {
+                  communityName = component.building.name;
+                }
+              }
+              
+              // 使用POI搜索进一步获取附近的小区信息
+              const placeSearch = new window.AMap.PlaceSearch({
+                type: '120300|120200', // 住宅区和商业区分类代码
+                pageSize: 3,
+                pageIndex: 1
+              });
+              
+              placeSearch.searchNearBy('', [lng, lat], 300, (poiStatus: string, poiResult: any) => {
+                let finalAddress = address;
+                
+                if (poiStatus === 'complete' && poiResult.poiList && poiResult.poiList.pois.length > 0) {
+                  // 查找最近的住宅小区
+                  const residentialPoi = poiResult.poiList.pois.find((poi: any) => 
+                    poi.type.includes('住宅') || poi.type.includes('小区') || poi.name.includes('小区') || 
+                    poi.name.includes('花园') || poi.name.includes('苑') || poi.name.includes('家园')
+                  );
+                  
+                  if (residentialPoi && residentialPoi.name) {
+                    communityName = residentialPoi.name;
+                  } else if (poiResult.poiList.pois[0].name) {
+                    // 如果没找到住宅类POI，使用最近的POI
+                    const nearestPoi = poiResult.poiList.pois[0];
+                    if (nearestPoi.distance < 100) { // 只有距离很近才使用
+                      communityName = nearestPoi.name;
+                    }
+                  }
+                }
+                
+                // 构建最终地址
+                if (communityName && !finalAddress.includes(communityName)) {
+                  finalAddress = `${communityName} - ${finalAddress}`;
+                }
+                
+                onLocationSelect?.({ lng, lat, address: finalAddress });
+              });
+            } else {
+              onLocationSelect?.({ lng, lat, address: '未知位置' });
             }
           });
         });
@@ -93,11 +146,62 @@ export default function CommunityMap({
         // 标记拖拽事件
         markerInstance.on('dragend', (e: any) => {
           const { lng, lat } = e.lnglat;
-          const geocoder = new window.AMap.Geocoder();
+          
+          // 使用与点击事件相同的增强逆地理编码逻辑
+          const geocoder = new window.AMap.Geocoder({
+            radius: 1000,
+            extensions: 'all'
+          });
+          
           geocoder.getAddress([lng, lat], (status: string, result: any) => {
             if (status === 'complete' && result.regeocode) {
-              const address = result.regeocode.formattedAddress;
-              onLocationSelect?.({ lng, lat, address });
+              const regeocode = result.regeocode;
+              let address = regeocode.formattedAddress;
+              let communityName = '';
+              
+              if (regeocode.addressComponent) {
+                const component = regeocode.addressComponent;
+                if (component.neighborhood && component.neighborhood.name) {
+                  communityName = component.neighborhood.name;
+                } else if (component.building && component.building.name) {
+                  communityName = component.building.name;
+                }
+              }
+              
+              // POI搜索获取小区信息
+              const placeSearch = new window.AMap.PlaceSearch({
+                type: '120300|120200',
+                pageSize: 3,
+                pageIndex: 1
+              });
+              
+              placeSearch.searchNearBy('', [lng, lat], 300, (poiStatus: string, poiResult: any) => {
+                let finalAddress = address;
+                
+                if (poiStatus === 'complete' && poiResult.poiList && poiResult.poiList.pois.length > 0) {
+                  const residentialPoi = poiResult.poiList.pois.find((poi: any) => 
+                    poi.type.includes('住宅') || poi.type.includes('小区') || poi.name.includes('小区') || 
+                    poi.name.includes('花园') || poi.name.includes('苑') || poi.name.includes('家园')
+                  );
+                  
+                  if (residentialPoi && residentialPoi.name) {
+                    communityName = residentialPoi.name;
+                  } else if (poiResult.poiList.pois[0].name) {
+                    const nearestPoi = poiResult.poiList.pois[0];
+                    if (nearestPoi.distance < 100) {
+                      communityName = nearestPoi.name;
+                    }
+                  }
+                }
+                
+                if (communityName && !finalAddress.includes(communityName)) {
+                  finalAddress = `${communityName} - ${finalAddress}`;
+                }
+                
+                onLocationSelect?.({ lng, lat, address: finalAddress });
+              });
+            } else {
+              onLocationSelect?.({ lng, lat, address: '未知位置' });
             }
           });
         });

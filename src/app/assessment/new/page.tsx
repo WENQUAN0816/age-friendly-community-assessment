@@ -5,6 +5,7 @@ import { ArrowLeft, Save, MapPin, Calculator } from 'lucide-react';
 import Link from 'next/link';
 import { INDICATOR_SYSTEM, type CommunityAssessment, type CategoryData, type IndicatorData } from '@/types/indicators';
 import CommunityMap from '@/components/maps/CommunityMap';
+import CommunitySearch from '@/components/maps/CommunitySearch';
 
 export default function NewAssessmentPage() {
   const [assessment, setAssessment] = useState<CommunityAssessment>({
@@ -209,6 +210,14 @@ export default function NewAssessmentPage() {
             <MapPin className="h-4 w-4 mr-1" />
             {showMap ? '隐藏地图' : '选择位置'}
           </button>
+        </div>
+        
+        {/* 小区搜索功能 */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            搜索小区名称
+          </label>
+          <CommunitySearch onLocationSelect={handleLocationSelect} />
         </div>
         
         {assessment.location.address && (
